@@ -1,0 +1,15 @@
+@media screen, print {
+  .column.is-4,
+  .column.is-4-tablet,
+  .is-4-desktop,
+  .is-4-widescreen .order-1 {
+    width: 25%;
+    max-width: 30rem;
+  }
+  .column.is-8,
+  .column.is-8-tablet,
+  .is-8-desktop,
+  .is-8-widescreen {
+    width: 75%;
+  }
+}

